@@ -2,6 +2,40 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Bench is a tool for running package benchmarks in isolation, one by one.
+//
+// Installation:
+//
+//	go get [-u] github.com/cznic/bench
+//
+// Usage:
+//
+//	bench [-benchmem] [import-path]
+//
+// Purpose
+//
+// Sometimes benchmarks influence each other and the results of a particular
+// benchmark are way different compared to when that benchmark is run alone.  A
+// common, but definitely not the only cause of this is the interference of the
+// garbage collector where the previous benchmark stressed the memory usage
+// substantially. Manually invoking the GC doesn't seem to always help as it
+// looks like it's only a hint to the runtime.  This tool simply runs
+// repeatedly the go test command requesting to run all package benchmarks one
+// by one. The output is in a format similar to go test and it should be
+// benchcmp compatible.
+//
+// bench does not run any tests.
+//
+// Example
+//
+// Benchmarking a branch of github.com/cznic/lldb
+//
+// 	$ benchcmp -mag -changed log-go-test log-bench
+// 	benchmark                                         old ns/op     new ns/op     delta
+// 	BenchmarkAllocatorRndGetSimpleFileFiler1e3-4      418091        2217          -99.47%
+// 	BenchmarkAllocatorRndFreeSimpleFileFiler1e3-4     31709         8038          -74.65%
+// 	BenchmarkAllocatorAllocSimpleFileFiler1e3-4       14292         5675          -60.29%
+// 	...
 package main
 
 import (
@@ -23,12 +57,13 @@ import (
 
 func init() {
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: %s [flags] [packages]\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "usage: %s [-benchmem] [package]\n\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 }
 
 var (
+	//TODO oBench = flag.String("bench", ".", "Regexp to select benchmarks.")
 	oBenchmem = flag.Bool("benchmem", false, "Print memory allocation statistics for benchmarks.")
 )
 
@@ -74,26 +109,28 @@ func main() {
 	}
 
 	flag.Parse()
-	if flag.NArg() != 0 {
-		log.Fatal("No non-flag arguments are supported")
-	}
-
-	wd, err := os.Getwd()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	gopaths := filepath.SplitList(os.Getenv("GOPATH"))
 	var importPath string
-	for _, v := range gopaths {
-		v = filepath.Join(v, "src")
-		var err error
-		if importPath, err = filepath.Rel(v, wd); err == nil {
-			break
+	gopaths := filepath.SplitList(os.Getenv("GOPATH"))
+	switch {
+	case flag.NArg() == 0 || flag.NArg() == 1 && flag.Arg(0) == ".":
+		wd, err := os.Getwd()
+		if err != nil {
+			log.Fatal(err)
 		}
-	}
-	if importPath == "" {
-		log.Fatal("Cannot determine import path of the current directory.")
+
+		for _, v := range gopaths {
+			var err error
+			if importPath, err = filepath.Rel(filepath.Join(v, "src"), wd); err == nil {
+				break
+			}
+		}
+		if importPath == "" {
+			log.Fatal("Cannot determine import path of the current directory.")
+		}
+	case flag.NArg() == 1:
+		importPath = flag.Arg(0)
+	default:
+		log.Fatal("At most one import path is supported.")
 	}
 
 	ctx, err := gc.NewContext(
@@ -133,7 +170,7 @@ func main() {
 
 	var t time.Duration
 	for _, v := range bench {
-		args := []string{"test", "-run", "NONE", "-bench", fmt.Sprintf("^%s$", v)}
+		args := []string{"test", "-run", "NONE", "-bench", fmt.Sprintf("^%s$", v), importPath}
 		if *oBenchmem {
 			args = append(args, "-benchmem")
 		}
