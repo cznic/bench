@@ -1,6 +1,18 @@
 # bench
 
-bench runs Go benchmarks in isolation.
+Bench is a tool for running package benchmarks in isolation, one by one.
+
+**Installation:**
+
+```
+go get [-u] github.com/cznic/bench
+```
+
+**Usage:**
+
+```
+bench [-benchmem] [import-path]
+```
 
 Sometimes benchmarks influence each other and the results of a particular
 benchmark are way different compared to when that benchmark is run alone.  A
