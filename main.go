@@ -53,6 +53,8 @@ import (
 	"time"
 
 	"github.com/cznic/gc"
+	"github.com/cznic/mathutil"
+	"golang.org/x/tools/benchmark/parse"
 )
 
 func init() {
@@ -167,6 +169,10 @@ func main() {
 			bench = append(bench, v)
 		}
 	}
+	width := 0
+	for _, v := range bench {
+		width = mathutil.Max(width, len(v))
+	}
 
 	var t time.Duration
 	for _, v := range bench {
@@ -218,7 +224,30 @@ func main() {
 		}
 
 		t += d
-		fmt.Printf("%s\n", a[0])
+		b, err := parse.ParseLine(string(a[0]))
+		if err != nil {
+			fmt.Printf("%s\n", a[0])
+			continue
+		}
+
+		fmt.Printf("%*s%15d", -(width + 4), b.Name, b.N)
+		if b.Measured&parse.NsPerOp != 0 {
+			s := fmt.Sprintf("%.2f", b.NsPerOp)
+			if strings.Index(s, ".") > 2 {
+				s = s[:len(s)-3]
+			}
+			fmt.Printf("%15s ns/op", s)
+		}
+		if b.Measured&parse.MBPerS != 0 {
+			fmt.Printf("%15.2f MB/s", b.MBPerS)
+		}
+		if b.Measured&parse.AllocedBytesPerOp != 0 {
+			fmt.Printf("%15v B/op", b.AllocedBytesPerOp)
+		}
+		if b.Measured&parse.AllocsPerOp != 0 {
+			fmt.Printf("%15v allocs/op", b.AllocsPerOp)
+		}
+		fmt.Println()
 	}
 	fmt.Printf("PASS\n")
 	fmt.Printf("ok  \t%s\t%v\n", importPath, t)
