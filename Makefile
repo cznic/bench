@@ -32,7 +32,7 @@ edit:
 editor:
 	gofmt -l -s -w *.go
 	go test
-	go build
+	go install
 
 internalError:
 	egrep -ho '"internal error.*"' *.go | sort | cat -n

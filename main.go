@@ -42,18 +42,19 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"go/build"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/cznic/gc"
 	"github.com/cznic/mathutil"
+	"github.com/cznic/token"
 	"golang.org/x/tools/benchmark/parse"
 )
 
@@ -70,37 +71,7 @@ var (
 )
 
 func defaultTags() []string {
-	v := runtime.Version()
-	if !strings.HasPrefix(v, "go") {
-		log.Panicln("internal error")
-	}
-
-	v = v[len("go"):]
-	i := 0
-outer:
-	for i < len(v) {
-		switch c := v[i]; {
-		case c >= '0' && c <= '9' || c == '.':
-			i++
-		default:
-			break outer
-		}
-	}
-	v = v[:i]
-	if v == "" {
-		log.Panicln("internal error")
-	}
-
-	n, err := strconv.ParseFloat(v, 64)
-	if err != nil {
-		log.Panicln(err)
-	}
-
-	var tags []string
-	for i := 1; i <= int(10*n+.5)%10; i++ {
-		tags = append(tags, fmt.Sprintf("go1.%d", i))
-	}
-	return tags
+	return build.Default.ReleaseTags
 }
 
 func main() {
@@ -135,18 +106,20 @@ func main() {
 		log.Fatal("At most one import path is supported.")
 	}
 
+	for i, v := range gopaths {
+		gopaths[i] = filepath.Join(v, "src")
+	}
 	ctx, err := gc.NewContext(
 		runtime.GOOS,
 		runtime.GOARCH,
-		runtime.GOROOT(),
-		gopaths,
 		defaultTags(),
+		append([]string{filepath.Join(runtime.GOROOT(), "src")}, gopaths...),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	_, _, testFiles, err := ctx.FilesFromImportPath(importPath)
+	_, _, testFiles, err := ctx.FilesForImportPath(token.Position{}, importPath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -207,6 +180,11 @@ func main() {
 		// $
 
 		a := bytes.Split(out, []byte{'\n'})
+		for _, v := range []string{"goos:", "goarch:", "pkg"} {
+			if len(a) != 0 && strings.HasPrefix(string(a[0]), v) {
+				a = a[1:]
+			}
+		}
 		if len(a) < 3 {
 			log.Fatalf("Unrecognized format of go test output:\n%s", out)
 		}
