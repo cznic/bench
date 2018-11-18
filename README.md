@@ -1,37 +1,5 @@
-# bench
+`github.com/cznic/bench` has moved to [`modernc.org/bench`](https://godoc.org/modernc.org/bench) ([vcs](https://gitlab.com/cznic/bench)).
 
-Bench is a tool for running package benchmarks in isolation, one by one.
+Please update your import paths to `modernc.org/bench`.
 
-**Installation:**
-
-```
-go get [-u] github.com/cznic/bench
-```
-
-**Usage:**
-
-```
-bench [-benchmem] [import-path]
-```
-
-Sometimes benchmarks influence each other and the results of a particular
-benchmark are way different compared to when that benchmark is run alone.  A
-common, but definitely not the only cause of this is the interference of the
-garbage collector where the previous benchmark stressed the memory usage
-substantially. Manually invoking the GC doesn't seem to always help as it looks
-like it's only a hint to the runtime.  This tool simply runs repeatedly the go
-test command requesting to run all package benchmarks one by one. The output is
-in a format similar to go test and it should be benchcmp compatible.
-
-bench does not run any tests.
-
-**Example**
-
-```
-$ benchcmp -mag -changed log-go-test log-bench
-benchmark                                         old ns/op     new ns/op     delta
-BenchmarkAllocatorRndGetSimpleFileFiler1e3-4      418091        2217          -99.47%
-BenchmarkAllocatorRndFreeSimpleFileFiler1e3-4     31709         8038          -74.65%
-BenchmarkAllocatorAllocSimpleFileFiler1e3-4       14292         5675          -60.29%
-...
-```
+This repo is now archived.
